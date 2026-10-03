@@ -12,3 +12,9 @@ def test_index_route(client):
     assert response.status_code == 200
     assert "Hello, World!".encode("utf-8") in response.data
     assert "Python Flask".encode("utf-8") in response.data
+
+def test_health_route(client):
+    response = client.get("/health")
+    assert response.status_code == 200
+    data = response.get_json()
+    assert data["status"] == "healthy"

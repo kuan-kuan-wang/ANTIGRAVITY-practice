@@ -26,13 +26,31 @@
         <h1 class="text-4xl font-extrabold text-gray-800 tracking-tight mb-3">
             {{ title }}
         </h1>
-        <p class="text-gray-600 text-lg mb-8 leading-relaxed">
+        <p class="text-gray-600 text-lg mb-6 leading-relaxed">
             {{ message }}
         </p>
 
+        <!-- 部署狀態標籤 -->
+        <div class="mb-6 flex justify-center">
+            {% if is_cloud %}
+            <span class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-emerald-100 text-emerald-800 shadow-sm border border-emerald-200">
+                <span class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
+                ☁️ Render 雲端運作中
+            </span>
+            {% else %}
+            <span class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-blue-100 text-blue-800 shadow-sm border border-blue-200">
+                <span class="w-2 h-2 rounded-full bg-blue-500"></span>
+                💻 本地開發環境
+            </span>
+            {% endif %}
+        </div>
+
         <!-- 互動卡片 -->
         <div class="bg-gray-50 border border-gray-100 rounded-xl p-5 mb-6 text-left">
-            <h2 class="text-sm font-semibold uppercase tracking-wider text-gray-400 mb-2">運行狀態</h2>
+            <div class="flex items-center justify-between mb-2">
+                <h2 class="text-sm font-semibold uppercase tracking-wider text-gray-400">運行狀態</h2>
+                <span class="text-xs text-indigo-600 font-medium">CI/CD 自動交付 ✨</span>
+            </div>
             <div class="flex items-center space-x-2 text-green-600 font-medium">
                 <span class="relative flex h-3 w-3">
                     <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75"></span>
@@ -41,7 +59,7 @@
                 <span>Flask 伺服器運作正常</span>
             </div>
             <p class="text-xs text-gray-500 mt-2">
-                端點位置：<code class="bg-gray-200 px-1.5 py-0.5 rounded text-gray-700">http://127.0.0.1:5000/</code>
+                目前網址：<code id="currentUrl" class="bg-gray-200 px-1.5 py-0.5 rounded text-gray-700">載入中...</code>
             </p>
         </div>
 
@@ -55,6 +73,9 @@
     </div>
 
     <script>
+        // 動態偵測並顯示目前網址
+        document.getElementById('currentUrl').textContent = window.location.origin;
+
         let count = 0;
         const btn = document.getElementById('clickBtn');
         const countSpan = document.getElementById('count');
