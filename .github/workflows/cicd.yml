@@ -1,0 +1,61 @@
+name: CI/CD Pipeline
+
+on:
+  push:
+    branches: [ "main" ]
+  pull_request:
+    branches: [ "main" ]
+
+jobs:
+  # ==============================
+  # 1. CI 階段：自動化測試與檢查
+  # ==============================
+  test:
+    name: Run Tests & Syntax Check
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: 📥 下載專案程式碼 (Checkout)
+        uses: actions/checkout@v4
+
+      - name: 🐍 設定 Python 環境
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: "pip"
+
+      - name: 📦 安裝相依套件
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+
+      - name: 🔍 Python 語法編譯檢查
+        run: |
+          python -m py_compile app.py
+
+      - name: 🧪 執行自動化測試 (pytest)
+        run: |
+          python -m pytest
+
+  # ==============================
+  # 2. CD 階段：部署至 Render
+  # ==============================
+  deploy:
+    name: Deploy to Render
+    needs: test
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+
+    steps:
+      - name: 🚀 觸發 Render Deploy Hook
+        env:
+          RENDER_DEPLOY_HOOK: ${{ secrets.RENDER_DEPLOY_HOOK_URL }}
+        run: |
+          if [ -z "$RENDER_DEPLOY_HOOK" ]; then
+            echo "::warning::尚未設定 RENDER_DEPLOY_HOOK_URL！請至 GitHub 存放庫 Settings -> Secrets and variables -> Actions 中新增此 Secret。"
+            echo "若您在 Render 上直接綁定了 GitHub Repository，Render 也會在此 Push 後自動為您觸發部署。"
+          else
+            echo "正在觸發 Render 部署..."
+            curl -f -X POST "$RENDER_DEPLOY_HOOK"
+            echo "✅ 已成功觸發 Render 部署流程！"
+          fi
