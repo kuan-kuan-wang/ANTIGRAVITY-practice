@@ -1,0 +1,238 @@
+{% extends "base.html" %}
+
+{% block title %}新增訂單{% endblock %}
+
+{% block content %}
+<div class="mb-4">
+    <nav aria-label="breadcrumb">
+        <ol class="breadcrumb">
+            <li class="breadcrumb-item"><a href="{{ url_for('orders_list') }}">訂單管理</a></li>
+            <li class="breadcrumb-item active" aria-current="page">新增訂單</li>
+        </ol>
+    </nav>
+    <h3 class="fw-bold mb-1"><i class="bi bi-cart-plus-fill text-primary me-2"></i>新增銷售訂單</h3>
+    <p class="text-muted mb-0">使用下拉選單選擇客戶，可一次勾選多項商品並自訂購買數量；單價將自動鎖定下單當前價格。</p>
+</div>
+
+<form action="{{ url_for('order_new') }}" method="POST" id="newOrderForm">
+    <div class="row g-4">
+        <!-- 左側：訂單基本資料 -->
+        <div class="col-lg-4">
+            <div class="card shadow-sm border-0 sticky-top" style="top: 80px;">
+                <div class="card-header bg-white py-3 border-bottom">
+                    <h5 class="mb-0 fw-bold"><i class="bi bi-info-circle-fill text-primary me-2"></i>訂單基本資料</h5>
+                </div>
+                <div class="card-body">
+                    <div class="mb-3">
+                        <label for="order_id" class="form-label fw-semibold">訂單編號 (PK) <span class="text-danger">*</span></label>
+                        <input type="text" class="form-control fw-bold" id="order_id" name="order_id" value="{{ next_order_id }}" required>
+                        <small class="text-muted">系統自動生成建議編號，亦可自訂</small>
+                    </div>
+
+                    <!-- 客戶下拉選單 (Requirement 6) -->
+                    <div class="mb-3">
+                        <label for="customer_id" class="form-label fw-semibold">客戶名稱 (下拉選單) <span class="text-danger">*</span></label>
+                        <select class="form-select" id="customer_id" name="customer_id" required>
+                            <option value="" disabled selected>-- 請選擇客戶 --</option>
+                            {% for c in customers %}
+                                <option value="{{ c.customer_id }}">
+                                    [{{ c.customer_id }}] {{ c.name }}
+                                </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="order_date" class="form-label fw-semibold">訂單日期 <span class="text-danger">*</span></label>
+                        <input type="date" class="form-control" id="order_date" name="order_date" value="{{ today }}" required>
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="salesperson" class="form-label fw-semibold">負責業務人員 <span class="text-danger">*</span></label>
+                        <input type="text" class="form-control" id="salesperson" name="salesperson" value="{{ session.get('display_name', '陳大明') }}" required>
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="status" class="form-label fw-semibold">初始訂單狀態</label>
+                        <select class="form-select" id="status" name="status">
+                            <option value="處理中" selected>處理中</option>
+                            <option value="已出貨">已出貨</option>
+                            <option value="已完成">已完成</option>
+                            <option value="已取消">已取消</option>
+                        </select>
+                    </div>
+
+                    <hr>
+
+                    <!-- 即時試算總結 -->
+                    <div class="bg-light p-3 rounded mb-3">
+                        <div class="d-flex justify-content-between mb-2">
+                            <span class="text-muted">已勾選品項：</span>
+                            <span class="fw-bold" id="summaryItemCount">0 項</span>
+                        </div>
+                        <div class="d-flex justify-content-between align-items-center">
+                            <span class="text-dark fw-semibold">訂單預估總額：</span>
+                            <span class="fs-4 fw-bold text-primary" id="summaryTotalAmount">NT$ 0</span>
+                        </div>
+                    </div>
+
+                    <button type="submit" class="btn btn-primary w-100 py-2 fw-semibold shadow-sm" id="submitBtn" disabled>
+                        <i class="bi bi-check2-circle me-1"></i> 確認建立訂單
+                    </button>
+                    <div id="selectionHint" class="text-danger small mt-2 text-center">
+                        * 請至少勾選一項商品以建立訂單
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 右側：商品勾選與數量輸入表格 (Requirement 6 & 7) -->
+        <div class="col-lg-8">
+            <div class="card shadow-sm border-0">
+                <div class="card-header bg-white py-3 border-bottom d-flex justify-content-between align-items-center flex-wrap gap-2">
+                    <div>
+                        <h5 class="mb-0 fw-bold"><i class="bi bi-box-seam text-success me-2"></i>勾選訂購商品與輸入數量</h5>
+                        <small class="text-muted">支援一次勾選多項商品；下單後自動鎖定此處定價為歷史單價</small>
+                    </div>
+                    <span class="badge bg-secondary-subtle text-secondary px-3 py-2">
+                        庫存即時連動扣減
+                    </span>
+                </div>
+                <div class="card-body p-0">
+                    <div class="table-responsive">
+                        <table class="table table-hover align-middle mb-0">
+                            <thead class="table-light">
+                                <tr>
+                                    <th style="width: 50px;" class="text-center">勾選</th>
+                                    <th>商品編號 / 品名</th>
+                                    <th>分類</th>
+                                    <th class="text-end" style="width: 130px;">下單單價</th>
+                                    <th class="text-center" style="width: 90px;">目前庫存</th>
+                                    <th style="width: 140px;" class="text-center">購買數量</th>
+                                    <th class="text-end" style="width: 130px;">小計金額</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for p in products %}
+                                <tr id="row_{{ p.product_id }}">
+                                    <td class="text-center">
+                                        <input type="checkbox" 
+                                               name="selected_products" 
+                                               value="{{ p.product_id }}" 
+                                               class="form-check-input product-chk" 
+                                               id="chk_{{ p.product_id }}"
+                                               data-id="{{ p.product_id }}"
+                                               data-price="{{ p.price }}"
+                                               data-stock="{{ p.stock }}"
+                                               {% if p.stock <= 0 %}disabled{% endif %}>
+                                    </td>
+                                    <td>
+                                        <label class="form-check-label fw-bold d-block text-dark cursor-pointer" for="chk_{{ p.product_id }}">
+                                            {{ p.name }}
+                                        </label>
+                                        <span class="badge bg-light text-muted border font-monospace">{{ p.product_id }}</span>
+                                    </td>
+                                    <td><span class="badge bg-light text-dark border">{{ p.category }}</span></td>
+                                    <td class="text-end fw-semibold text-primary">
+                                        NT$ {{ "{:,}".format(p.price|int) }}
+                                    </td>
+                                    <td class="text-center">
+                                        {% if p.stock > 0 %}
+                                            <span class="badge bg-success-subtle text-success">{{ p.stock }}</span>
+                                        {% else %}
+                                            <span class="badge bg-danger text-white">缺貨中</span>
+                                        {% endif %}
+                                    </td>
+                                    <td class="text-center">
+                                        <div class="input-group input-group-sm">
+                                            <input type="number" 
+                                                   name="qty_{{ p.product_id }}" 
+                                                   id="qty_{{ p.product_id }}" 
+                                                   class="form-control text-center qty-input" 
+                                                   value="1" 
+                                                   min="1" 
+                                                   max="{{ p.stock }}" 
+                                                   disabled
+                                                   required>
+                                            <span class="input-group-text">件</span>
+                                        </div>
+                                    </td>
+                                    <td class="text-end fw-bold" id="subtotal_{{ p.product_id }}">
+                                        -
+                                    </td>
+                                </tr>
+                                {% else %}
+                                <tr>
+                                    <td colspan="7" class="text-center py-4 text-muted">無可用商品資料</td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</form>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    const checkboxes = document.querySelectorAll('.product-chk');
+    const submitBtn = document.getElementById('submitBtn');
+    const selectionHint = document.getElementById('selectionHint');
+    const summaryItemCount = document.getElementById('summaryItemCount');
+    const summaryTotalAmount = document.getElementById('summaryTotalAmount');
+
+    function recalculate() {
+        let total = 0;
+        let count = 0;
+
+        checkboxes.forEach(chk => {
+            const id = chk.getAttribute('data-id');
+            const price = parseFloat(chk.getAttribute('data-price')) || 0;
+            const qtyInput = document.getElementById('qty_' + id);
+            const subtotalSpan = document.getElementById('subtotal_' + id);
+            const row = document.getElementById('row_' + id);
+
+            if (chk.checked) {
+                count++;
+                qtyInput.disabled = false;
+                const qty = parseInt(qtyInput.value) || 1;
+                const subtotal = price * qty;
+                total += subtotal;
+                subtotalSpan.textContent = 'NT$ ' + subtotal.toLocaleString();
+                subtotalSpan.className = 'text-end fw-bold text-success';
+                row.classList.add('table-primary');
+            } else {
+                qtyInput.disabled = true;
+                subtotalSpan.textContent = '-';
+                subtotalSpan.className = 'text-end text-muted';
+                row.classList.remove('table-primary');
+            }
+        });
+
+        summaryItemCount.textContent = count + ' 項';
+        summaryTotalAmount.textContent = 'NT$ ' + total.toLocaleString();
+
+        if (count > 0) {
+            submitBtn.disabled = false;
+            selectionHint.style.display = 'none';
+        } else {
+            submitBtn.disabled = true;
+            selectionHint.style.display = 'block';
+        }
+    }
+
+    checkboxes.forEach(chk => {
+        chk.addEventListener('change', recalculate);
+    });
+
+    document.querySelectorAll('.qty-input').forEach(input => {
+        input.addEventListener('input', recalculate);
+    });
+
+    // 初始計算
+    recalculate();
+</script>
+{% endblock %}

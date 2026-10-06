@@ -1,0 +1,125 @@
+{% extends "base.html" %}
+
+{% block title %}訂單管理{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4 flex-wrap gap-2">
+    <div>
+        <h3 class="fw-bold mb-1"><i class="bi bi-receipt-cutoff text-primary me-2"></i>訂單資料管理</h3>
+        <p class="text-muted mb-0">瀏覽訂單清單、直接切換訂單狀態，並進入專屬出貨單與 QRCode 頁面</p>
+    </div>
+    <div>
+        <a href="{{ url_for('order_new') }}" class="btn btn-primary shadow-sm">
+            <i class="bi bi-plus-circle me-1"></i> 新增訂單
+        </a>
+    </div>
+</div>
+
+<div class="card shadow-sm border-0">
+    <div class="card-header bg-white py-3 border-bottom d-flex justify-content-between align-items-center">
+        <span class="fw-semibold text-dark"><i class="bi bi-list-check me-2 text-primary"></i>全部訂單列表 (共 {{ orders|length }} 筆)</span>
+        <span class="text-muted small"><i class="bi bi-lightning-charge-fill text-warning me-1"></i>狀態下拉選單變更後將「立即自動更新」</span>
+    </div>
+    <div class="card-body p-0">
+        <div class="table-responsive">
+            <table class="table table-hover align-middle mb-0">
+                <thead class="table-light">
+                    <tr>
+                        <th style="width: 120px;">訂單編號</th>
+                        <th>客戶名稱</th>
+                        <th style="width: 120px;">訂單日期</th>
+                        <th style="width: 110px;">業務人員</th>
+                        <th class="text-center" style="width: 100px;">商品品項</th>
+                        <th class="text-end" style="width: 140px;">訂單總額 (NT$)</th>
+                        <th style="width: 160px;" class="text-center">訂單狀態 (直接更新)</th>
+                        <th style="width: 180px;" class="text-center">操作</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for o in orders %}
+                    <tr>
+                        <td class="fw-bold">
+                            <a href="{{ url_for('order_detail', order_id=o.order_id) }}" class="text-decoration-none">
+                                {{ o.order_id }}
+                            </a>
+                        </td>
+                        <td>
+                            <div class="fw-semibold">{{ o.customer_name }}</div>
+                            <small class="text-muted">{{ o.customer_phone or o.customer_address }}</small>
+                        </td>
+                        <td class="text-muted small">{{ o.order_date }}</td>
+                        <td>{{ o.salesperson }}</td>
+                        <td class="text-center">
+                            {% if o.item_count > 1 %}
+                                <span class="badge bg-primary-subtle text-primary fw-bold" title="包含多項商品">
+                                    {{ o.item_count }} 項 ★
+                                </span>
+                            {% elif o.item_count == 1 %}
+                                <span class="badge bg-secondary-subtle text-secondary">1 項</span>
+                            {% else %}
+                                <span class="badge bg-danger-subtle text-danger">0 項 (草稿)</span>
+                            {% endif %}
+                        </td>
+                        <td class="text-end fw-bold text-dark">
+                            NT$ {{ "{:,}".format(o.total_amount|int) }}
+                        </td>
+                        <td class="text-center">
+                            <!-- 狀態直接更新表單 (Requirement 8) -->
+                            <form action="{{ url_for('order_update_status', order_id=o.order_id) }}" method="POST" class="d-inline">
+                                <select name="status" 
+                                        class="form-select form-select-sm fw-bold badge-select-status" 
+                                        data-current="{{ o.status }}"
+                                        onchange="this.form.submit()"
+                                        title="點擊直接變更訂單狀態">
+                                    <option value="處理中" {% if o.status == '處理中' %}selected{% endif %}>處理中</option>
+                                    <option value="已出貨" {% if o.status == '已出貨' %}selected{% endif %}>已出貨</option>
+                                    <option value="已完成" {% if o.status == '已完成' %}selected{% endif %}>已完成</option>
+                                    <option value="已取消" {% if o.status == '已取消' %}selected{% endif %}>已取消</option>
+                                </select>
+                            </form>
+                        </td>
+                        <td class="text-center">
+                            <a href="{{ url_for('order_detail', order_id=o.order_id) }}" class="btn btn-sm btn-outline-primary me-1" title="專屬出貨單 & QRCode">
+                                <i class="bi bi-qr-code me-1"></i>出貨單
+                            </a>
+                            <form action="{{ url_for('order_delete', order_id=o.order_id) }}" method="POST" class="d-inline" onsubmit="return confirm('確定要刪除訂單 {{ o.order_id }} 及其所有明細嗎？此操作無法還原。');">
+                                <button type="submit" class="btn btn-sm btn-outline-danger" title="刪除訂單">
+                                    <i class="bi bi-trash"></i>
+                                </button>
+                            </form>
+                        </td>
+                    </tr>
+                    {% else %}
+                    <tr>
+                        <td colspan="8" class="text-center py-4 text-muted">目前暫無訂單記錄</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    // 依選單數值動態設置外觀色彩
+    document.querySelectorAll('.badge-select-status').forEach(select => {
+        function updateStyle() {
+            const val = select.value;
+            select.classList.remove('border-warning', 'border-primary', 'border-success', 'border-danger', 'bg-warning-subtle', 'bg-primary-subtle', 'bg-success-subtle', 'bg-danger-subtle');
+            if (val === '處理中') {
+                select.classList.add('border-warning', 'bg-warning-subtle');
+            } else if (val === '已出貨') {
+                select.classList.add('border-primary', 'bg-primary-subtle');
+            } else if (val === '已完成') {
+                select.classList.add('border-success', 'bg-success-subtle');
+            } else if (val === '已取消') {
+                select.classList.add('border-danger', 'bg-danger-subtle');
+            }
+        }
+        updateStyle();
+        select.addEventListener('change', updateStyle);
+    });
+</script>
+{% endblock %}

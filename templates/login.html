@@ -1,0 +1,50 @@
+{% extends "base.html" %}
+
+{% block title %}管理員登入{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center align-items-center" style="min-height: 70vh;">
+    <div class="col-sm-10 col-md-8 col-lg-5 col-xl-4">
+        <div class="card shadow border-0">
+            <div class="card-header bg-primary text-white text-center py-4 rounded-top">
+                <i class="bi bi-shield-lock-fill display-5 d-block mb-2"></i>
+                <h4 class="mb-0 fw-bold">管理員登入</h4>
+                <small class="text-white-50">訂單管理系統後台維護</small>
+            </div>
+            <div class="card-body p-4">
+                <!-- 預設帳密提示 -->
+                <div class="alert alert-info py-2 px-3 small d-flex align-items-center gap-2 mb-4">
+                    <i class="bi bi-info-circle-fill fs-5"></i>
+                    <div>
+                        預設管理員帳號：<strong>admin</strong><br>
+                        預設管理員密碼：<strong>admin123</strong>
+                    </div>
+                </div>
+
+                <form method="POST" action="{{ url_for('login') }}">
+                    <div class="mb-3">
+                        <label for="username" class="form-label fw-semibold">管理員帳號</label>
+                        <div class="input-group">
+                            <span class="input-group-text"><i class="bi bi-person"></i></span>
+                            <input type="text" class="form-control" id="username" name="username" value="admin" required autofocus placeholder="請輸入帳號">
+                        </div>
+                    </div>
+                    <div class="mb-4">
+                        <label for="password" class="form-label fw-semibold">登入密碼</label>
+                        <div class="input-group">
+                            <span class="input-group-text"><i class="bi bi-key"></i></span>
+                            <input type="password" class="form-control" id="password" name="password" value="admin123" required placeholder="請輸入密碼">
+                        </div>
+                    </div>
+                    <button type="submit" class="btn btn-primary w-100 py-2 fw-semibold shadow-sm">
+                        <i class="bi bi-box-arrow-in-right me-1"></i> 立即登入
+                    </button>
+                </form>
+            </div>
+            <div class="card-footer bg-light text-center py-3 text-muted small">
+                登入後即可執行客戶、商品及訂單之完整新增、修改與刪除功能
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
